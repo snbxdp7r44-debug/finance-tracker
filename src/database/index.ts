@@ -1,2 +1,6 @@
-// Database module
-// Migrations and repository pattern will be implemented here
+export { default as DatabaseProvider } from './DatabaseProvider';
+export * from './types';
+export * from './categoryRepository';
+export * from './categoryRuleRepository';
+export * from './transactionRepository';
+export { runMigrations } from './migrations';

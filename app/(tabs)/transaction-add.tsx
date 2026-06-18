@@ -1,27 +1,44 @@
-import { View, Text, StyleSheet } from 'react-native';
+import React from 'react';
+import { ScrollView, View, StyleSheet } from 'react-native';
+import { Text } from 'react-native-paper';
+import { useSQLiteContext } from 'expo-sqlite';
+import { useRouter } from 'expo-router';
+import TransactionForm from '../../src/components/TransactionForm';
+import { useTransactionStore } from '../../src/stores/transactionStore';
 
 export default function TransactionAddScreen() {
+  const db = useSQLiteContext();
+  const router = useRouter();
+  const { currentMonth, loadMonthlyData } = useTransactionStore();
+
+  const handleSuccess = async () => {
+    // Reload data for the current month after adding a transaction
+    await loadMonthlyData(db, currentMonth);
+    // Navigate to home screen
+    router.navigate('/');
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>记一笔</Text>
-      <Text style={styles.subtitle}>添加收支记录</Text>
-    </View>
+    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+      <View style={styles.header}>
+        <Text style={styles.title}>记一笔</Text>
+      </View>
+      <TransactionForm onSuccess={handleSuccess} />
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
-  },
-  subtitle: {
-    fontSize: 16,
-    marginTop: 8,
-    opacity: 0.6,
   },
 });
