@@ -2,6 +2,14 @@ import React from 'react';
 import { render } from '@testing-library/react-native';
 import { Category, TransactionType } from '../../src/database/types';
 
+// Mock @expo/vector-icons (depends on expo-asset/expo-font which may not be in test env)
+jest.mock('@expo/vector-icons', () => {
+  const { View } = require('react-native');
+  return {
+    MaterialCommunityIcons: (props: any) => <View {...props} />,
+  };
+});
+
 // Mock expo-sqlite
 jest.mock('expo-sqlite', () => ({
   useSQLiteContext: () => ({
