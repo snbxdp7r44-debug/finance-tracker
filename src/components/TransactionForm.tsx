@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { TextInput, HelperText, Button, SegmentedButtons } from 'react-native-paper';
@@ -39,6 +39,8 @@ export default function TransactionForm({ onSuccess }: TransactionFormProps) {
 
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<TransactionType>('expense');
+  // Ref to always hold the latest type value, preventing stale closures in debounced callbacks
+  const typeRef = useRef<TransactionType>('expense');
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(getTodayString());
@@ -51,6 +53,11 @@ export default function TransactionForm({ onSuccess }: TransactionFormProps) {
     loadCategories(db);
   }, [db]);
 
+  // Keep typeRef in sync with latest type so debounced callbacks always read the current value
+  useEffect(() => {
+    typeRef.current = type;
+  }, [type]);
+
   // Auto-categorization: when description changes, try to suggest a category
   useEffect(() => {
     let cancelled = false;
@@ -59,12 +66,11 @@ export default function TransactionForm({ onSuccess }: TransactionFormProps) {
       try {
         const result = await suggestCategory(db, description);
         if (!cancelled && result) {
-          // Only auto-select if no category is currently selected, or if the suggested category matches the current type
-          if (selectedCategoryId === null || result.category.type === type) {
-            if (result.category.type === type) {
-              setSelectedCategoryId(result.category.id);
-              setCategoryError('');
-            }
+          // Use typeRef.current (not the captured `type`) to avoid stale closure when
+          // the user changes type during the 300ms debounce window
+          if (result.category.type === typeRef.current) {
+            setSelectedCategoryId(result.category.id);
+            setCategoryError('');
           }
         }
       } catch {
