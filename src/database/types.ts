@@ -92,3 +92,39 @@ export interface CategoryExpenseTotal {
   category_color: string;
   total: number;
 }
+
+// Budget types
+
+export interface Budget {
+  id: number;
+  month: string; // YYYY-MM format
+  category_id: number | null; // NULL for total budget
+  amount: number;
+  rollover_enabled: number; // 0 or 1 (SQLite boolean)
+  rollover_amount: number; // accumulated rollover from previous month
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BudgetCreateInput {
+  month: string;
+  category_id: number | null;
+  amount: number;
+  rollover_enabled?: number;
+  rollover_amount?: number;
+}
+
+export interface BudgetUpdateInput {
+  amount?: number;
+  rollover_enabled?: number;
+  rollover_amount?: number;
+}
+
+export interface BudgetStatus {
+  budget: Budget;
+  spending: number;
+  effectiveBudget: number; // amount + rolloverFromPrevious
+  percentage: number; // spending / effectiveBudget * 100
+  isOverBudget: boolean;
+  rolloverFromPrevious: number;
+}

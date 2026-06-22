@@ -33,7 +33,7 @@ const DEFAULT_CATEGORY_RULES: Record<string, string[]> = {
   '通讯': ['话费', '流量', '充值', '手机'],
 };
 
-const CURRENT_DB_VERSION = 2;
+const CURRENT_DB_VERSION = 3;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const userVersion = await db.getFirstAsync<{ user_version: number }>(
@@ -47,6 +47,10 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
 
   if (currentVersion < 2) {
     await migrateV2(db);
+  }
+
+  if (currentVersion < 3) {
+    await migrateV3(db);
   }
 }
 
@@ -156,4 +160,26 @@ async function migrateV2(db: SQLiteDatabase): Promise<void> {
 
   // Update database version
   await db.runAsync(`PRAGMA user_version = ${2}`);
+}
+
+async function migrateV3(db: SQLiteDatabase): Promise<void> {
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS budgets (
+      id INTEGER PRIMARY KEY NOT NULL,
+      month TEXT NOT NULL,
+      category_id INTEGER,
+      amount REAL NOT NULL CHECK(amount > 0),
+      rollover_enabled INTEGER NOT NULL DEFAULT 0,
+      rollover_amount REAL NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_budgets_month_category
+      ON budgets(month, COALESCE(category_id, -1));
+  `);
+
+  // Update database version
+  await db.runAsync(`PRAGMA user_version = ${3}`);
 }
