@@ -231,4 +231,76 @@ describe('TransactionAddScreen', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/');
     });
   });
+
+  it('shows validation error for invalid date that JS auto-rolls (2026-02-30)', async () => {
+    const TransactionAddScreen = require('../../app/(tabs)/transaction-add').default;
+    const { getByText, UNSAFE_getAllByType, getAllByText, getByPlaceholderText } = render(<TransactionAddScreen />);
+
+    // Fill in amount and category
+    const textInputs = UNSAFE_getAllByType(TextInput);
+    fireEvent.changeText(textInputs[0], '35.5');
+    fireEvent.press(getByText('餐饮'));
+
+    // Set invalid date (Feb 30 does not exist)
+    const dateInput = getByPlaceholderText('YYYY-MM-DD');
+    fireEvent.changeText(dateInput, '2026-02-30');
+
+    // Submit
+    const submitButtons = getAllByText('记一笔');
+    fireEvent.press(submitButtons[submitButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(getByText('请输入有效日期')).toBeTruthy();
+    });
+    expect(mockAddTransaction).not.toHaveBeenCalled();
+  });
+
+  it('shows validation error for invalid date with wrong format', async () => {
+    const TransactionAddScreen = require('../../app/(tabs)/transaction-add').default;
+    const { getByText, UNSAFE_getAllByType, getAllByText, getByPlaceholderText } = render(<TransactionAddScreen />);
+
+    // Fill in amount and category
+    const textInputs = UNSAFE_getAllByType(TextInput);
+    fireEvent.changeText(textInputs[0], '35.5');
+    fireEvent.press(getByText('餐饮'));
+
+    // Set invalid date format
+    const dateInput = getByPlaceholderText('YYYY-MM-DD');
+    fireEvent.changeText(dateInput, 'not-a-date');
+
+    // Submit
+    const submitButtons = getAllByText('记一笔');
+    fireEvent.press(submitButtons[submitButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(getByText('请输入有效日期')).toBeTruthy();
+    });
+    expect(mockAddTransaction).not.toHaveBeenCalled();
+  });
+
+  it('accepts a valid date (2026-06-15) without date error', async () => {
+    const TransactionAddScreen = require('../../app/(tabs)/transaction-add').default;
+    const { getByText, UNSAFE_getAllByType, getAllByText, getByPlaceholderText, queryByText } = render(<TransactionAddScreen />);
+
+    // Fill in amount and category
+    const textInputs = UNSAFE_getAllByType(TextInput);
+    fireEvent.changeText(textInputs[0], '35.5');
+    fireEvent.press(getByText('餐饮'));
+
+    // Set a valid date
+    const dateInput = getByPlaceholderText('YYYY-MM-DD');
+    fireEvent.changeText(dateInput, '2026-06-15');
+
+    // Submit
+    const submitButtons = getAllByText('记一笔');
+    fireEvent.press(submitButtons[submitButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(mockAddTransaction).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ date: '2026-06-15' })
+      );
+    });
+    expect(queryByText('请输入有效日期')).toBeNull();
+  });
 });
