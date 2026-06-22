@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { TextInput } from 'react-native-paper';
 
 // Mock expo-sqlite
@@ -40,13 +40,10 @@ const mockAddTransaction = jest.fn(async () => ({
   category_icon: 'food',
   category_color: '#FF5722',
 }));
-const mockLoadMonthlyData = jest.fn(async () => {});
 
 jest.mock('../../src/stores/transactionStore', () => ({
   useTransactionStore: () => ({
     addTransaction: mockAddTransaction,
-    loadMonthlyData: mockLoadMonthlyData,
-    currentMonth: '2026-06',
     submitting: false,
     error: null,
   }),
@@ -232,6 +229,26 @@ describe('TransactionAddScreen', () => {
     });
   });
 
+  it('does not call loadMonthlyData after successful submit (no double-fetch)', async () => {
+    // The store's addTransaction already reloads monthly data; no extra fetch should occur.
+    const TransactionAddScreen = require('../../app/(tabs)/transaction-add').default;
+    const { getByText, UNSAFE_getAllByType, getAllByText } = render(<TransactionAddScreen />);
+
+    const textInputs = UNSAFE_getAllByType(TextInput);
+    fireEvent.changeText(textInputs[0], '35.5');
+    fireEvent.press(getByText('餐饮'));
+
+    const submitButtons = getAllByText('记一笔');
+    fireEvent.press(submitButtons[submitButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/');
+    });
+
+    // addTransaction is called exactly once; no separate loadMonthlyData call
+    expect(mockAddTransaction).toHaveBeenCalledTimes(1);
+  });
+
   it('shows validation error for invalid date that JS auto-rolls (2026-02-30)', async () => {
     const TransactionAddScreen = require('../../app/(tabs)/transaction-add').default;
     const { getByText, UNSAFE_getAllByType, getAllByText, getByPlaceholderText } = render(<TransactionAddScreen />);
@@ -302,5 +319,94 @@ describe('TransactionAddScreen', () => {
       );
     });
     expect(queryByText('请输入有效日期')).toBeNull();
+  });
+});
+
+describe('TransactionForm auto-categorization debounce stale closure fix', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('does not auto-select expense category when type switches to income before debounce fires', async () => {
+    const { suggestCategory } = require('../../src/utils/autoCategorize');
+    // suggestCategory returns an expense category
+    (suggestCategory as jest.Mock).mockResolvedValue({
+      category: { id: 1, name: '餐饮', icon: 'food', color: '#FF5722', type: 'expense' },
+    });
+
+    const TransactionAddScreen = require('../../app/(tabs)/transaction-add').default;
+    const { getByPlaceholderText, getByText, getAllByText, UNSAFE_getAllByType } = render(
+      <TransactionAddScreen />
+    );
+
+    // Type description while in expense mode (default) — starts the 300ms debounce timer
+    fireEvent.changeText(getByPlaceholderText('输入描述可自动分类'), '咖啡');
+
+    // Switch to income BEFORE the debounce fires — typeRef.current becomes 'income'
+    fireEvent.press(getByText('收入'));
+
+    // Advance all pending timers and flush the resulting async chain
+    await act(async () => {
+      await jest.runAllTimersAsync();
+    });
+
+    // Submit with a valid amount — category should NOT be auto-selected because
+    // typeRef.current ('income') does not match the returned expense category
+    const textInputs = UNSAFE_getAllByType(TextInput);
+    fireEvent.changeText(textInputs[0], '35.5');
+
+    const submitButtons = getAllByText('记一笔');
+    fireEvent.press(submitButtons[submitButtons.length - 1]);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // Without the stale-closure fix the expense category would be applied, hiding the error
+    expect(getByText('请选择分类')).toBeTruthy();
+    expect(mockAddTransaction).not.toHaveBeenCalled();
+  });
+
+  it('auto-selects category when suggestion type matches current type (no type change)', async () => {
+    const { suggestCategory } = require('../../src/utils/autoCategorize');
+    // suggestCategory returns an expense category
+    (suggestCategory as jest.Mock).mockResolvedValue({
+      category: { id: 1, name: '餐饮', icon: 'food', color: '#FF5722', type: 'expense' },
+    });
+
+    const TransactionAddScreen = require('../../app/(tabs)/transaction-add').default;
+    const { getByPlaceholderText, getAllByText, UNSAFE_getAllByType } = render(
+      <TransactionAddScreen />
+    );
+
+    // Type description while staying in expense mode (no type switch)
+    fireEvent.changeText(getByPlaceholderText('输入描述可自动分类'), '咖啡');
+
+    // Advance timers without changing the type
+    await act(async () => {
+      await jest.runAllTimersAsync();
+    });
+
+    // Submit with a valid amount — category should be auto-selected (types match)
+    const textInputs = UNSAFE_getAllByType(TextInput);
+    fireEvent.changeText(textInputs[0], '35.5');
+
+    const submitButtons = getAllByText('记一笔');
+    fireEvent.press(submitButtons[submitButtons.length - 1]);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // addTransaction called with the auto-selected category id
+    expect(mockAddTransaction).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ category_id: 1 })
+    );
   });
 });
