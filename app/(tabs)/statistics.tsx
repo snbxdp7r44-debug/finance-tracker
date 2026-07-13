@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import { LineChart, PieChart } from 'react-native-chart-kit';
-import { IconButton, Card } from 'react-native-paper';
+import { Card } from 'react-native-paper';
 import { useSQLiteContext } from 'expo-sqlite';
 import { getMonthlyTrend, getMonthlyExpenseByCategory, MonthlyTrendPoint, CategoryExpenseTotal } from '../../src/database';
 
+const TREND_MONTHS = 6;
 const screenWidth = Dimensions.get('window').width;
 
 function formatMonthLabel(month: string): string {
@@ -21,20 +22,22 @@ export default function StatisticsScreen() {
   const db = useSQLiteContext();
   const [trendData, setTrendData] = useState<MonthlyTrendPoint[]>([]);
   const [categoryExpenses, setCategoryExpenses] = useState<CategoryExpenseTotal[]>([]);
-  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth());
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const currentMonth = getCurrentMonth();
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const [trend, expenses] = await Promise.all([
-        getMonthlyTrend(db, 6),
+        getMonthlyTrend(db, TREND_MONTHS),
         getMonthlyExpenseByCategory(db, currentMonth),
       ]);
       setTrendData(trend);
       setCategoryExpenses(expenses);
-    } catch (e) {
-      // silently handle
+    } catch {
+      setError('加载数据失败，请检查数据库连接后重试');
     } finally {
       setLoading(false);
     }
@@ -43,6 +46,22 @@ export default function StatisticsScreen() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.statusText}>加载中...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
 
   const lineChartData = {
     labels: trendData.map((d) => formatMonthLabel(d.month)),
@@ -61,7 +80,7 @@ export default function StatisticsScreen() {
     legend: ['收入', '支出'],
   };
 
-  const pieChartData = categoryExpenses.map((c, i) => ({
+  const pieChartData = categoryExpenses.map((c) => ({
     name: c.category_name,
     amount: c.total,
     color: c.category_color,
@@ -72,22 +91,13 @@ export default function StatisticsScreen() {
   const hasTrendData = trendData.some((d) => d.income > 0 || d.expense > 0);
   const hasPieData = categoryExpenses.length > 0;
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>加载中...</Text>
-      </View>
-    );
-  }
-
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>统计</Text>
 
-      {/* Trend Line Chart */}
       <Card style={styles.chartCard}>
         <Card.Content>
-          <Text style={styles.chartTitle}>收支趋势（近6个月）</Text>
+          <Text style={styles.chartTitle}>收支趋势（近{TREND_MONTHS}个月）</Text>
           {hasTrendData ? (
             <LineChart
               data={lineChartData}
@@ -115,7 +125,6 @@ export default function StatisticsScreen() {
               <Text style={styles.emptyText}>暂无数据</Text>
             </View>
           )}
-          {/* Legend */}
           <View style={styles.legendRow}>
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: '#4CAF50' }]} />
@@ -129,7 +138,6 @@ export default function StatisticsScreen() {
         </Card.Content>
       </Card>
 
-      {/* Expense Pie Chart */}
       <Card style={styles.chartCard}>
         <Card.Content>
           <Text style={styles.chartTitle}>支出分类占比（{currentMonth}）</Text>
@@ -162,14 +170,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  loadingContainer: {
+  centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  loadingText: {
+  statusText: {
     fontSize: 16,
     opacity: 0.5,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#F44336',
   },
   title: {
     fontSize: 24,
