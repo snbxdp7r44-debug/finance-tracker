@@ -8,6 +8,7 @@ import {
   getMonthlyTotalByType,
   getMonthlyExpenseByCategory,
   getTransactionCountByCategory,
+  getMonthlyTrend,
 } from '../../src/database/transactionRepository';
 import { Transaction, TransactionType } from '../../src/database/types';
 
@@ -42,6 +43,27 @@ function createMockDb() {
     },
 
     getAllAsync: jest.fn(async (sql: string, params?: any[]) => {
+      // Check for monthly trend query (GROUP BY substr(date, 1, 7))
+      if (sql.includes("substr(date, 1, 7)") && sql.includes("GROUP BY")) {
+        const limit = params?.[0] as number;
+        const monthMap: Record<string, { income: number; expense: number }> = {};
+        for (const t of transactions) {
+          const month = t.date.substring(0, 7);
+          if (!monthMap[month]) {
+            monthMap[month] = { income: 0, expense: 0 };
+          }
+          if (t.type === 'income') {
+            monthMap[month].income += t.amount;
+          } else {
+            monthMap[month].expense += t.amount;
+          }
+        }
+        // Simulate SQL: ORDER BY month DESC LIMIT ? (getMonthlyTrend does .reverse() on result)
+        return Object.entries(monthMap)
+          .sort(([a], [b]) => b.localeCompare(a))
+          .slice(0, limit)
+          .map(([month, totals]) => ({ month, ...totals }));
+      }
       // Check GROUP BY first (it also contains FROM transactions t)
       if (sql.includes('GROUP BY t.category_id')) {
         // Monthly expense by category
@@ -474,6 +496,49 @@ describe('transactionRepository', () => {
     it('should return 0 for category with no transactions', async () => {
       const count = await getTransactionCountByCategory(db, 999);
       expect(count).toBe(0);
+    });
+  });
+
+  describe('getMonthlyTrend', () => {
+    beforeEach(async () => {
+      await insertTransaction(db, {
+        amount: 35.5, type: 'expense', category_id: 1, description: '午餐', date: '2026-06-15',
+      });
+      await insertTransaction(db, {
+        amount: 5000, type: 'income', category_id: 3, description: '工资', date: '2026-06-01',
+      });
+      await insertTransaction(db, {
+        amount: 100, type: 'expense', category_id: 1, description: '早餐', date: '2026-05-20',
+      });
+      await insertTransaction(db, {
+        amount: 6000, type: 'income', category_id: 3, description: '工资', date: '2026-05-01',
+      });
+    });
+
+    it('should return monthly totals', async () => {
+      const result = await getMonthlyTrend(db, 6);
+      expect(result).toHaveLength(2);
+      // Should be sorted by month ascending
+      const months = result.map(r => r.month);
+      expect(months).toEqual(['2026-05', '2026-06']);
+      const mayData = result.find(r => r.month === '2026-05')!;
+      expect(mayData.income).toBe(6000);
+      expect(mayData.expense).toBe(100);
+      const junData = result.find(r => r.month === '2026-06')!;
+      expect(junData.income).toBe(5000);
+      expect(junData.expense).toBeCloseTo(35.5);
+    });
+
+    it('should respect the limit parameter', async () => {
+      const result = await getMonthlyTrend(db, 1);
+      expect(result).toHaveLength(1);
+      expect(result[0].month).toBe('2026-06');
+    });
+
+    it('should return empty array when no data', async () => {
+      db._setTransactions([]);
+      const result = await getMonthlyTrend(db, 6);
+      expect(result).toHaveLength(0);
     });
   });
 });

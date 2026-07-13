@@ -181,3 +181,27 @@ export async function getTransactionCountByCategory(
   );
   return result?.count ?? 0;
 }
+
+export interface MonthlyTrendPoint {
+  month: string;
+  income: number;
+  expense: number;
+}
+
+export async function getMonthlyTrend(
+  db: SQLiteDatabase,
+  numMonths: number
+): Promise<MonthlyTrendPoint[]> {
+  const result = await db.getAllAsync<{ month: string; income: number; expense: number }>(
+    `SELECT
+      substr(date, 1, 7) as month,
+      COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as income,
+      COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as expense
+    FROM transactions
+    GROUP BY substr(date, 1, 7)
+    ORDER BY month DESC
+    LIMIT ?`,
+    [numMonths]
+  );
+  return result.reverse();
+}
