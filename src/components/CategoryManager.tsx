@@ -2,7 +2,6 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   Alert,
   ScrollView,
@@ -20,12 +19,11 @@ import {
   Chip,
   FAB,
   SegmentedButtons,
-  Divider,
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCategoryStore } from '../stores/categoryStore';
 import { useCategoryRuleStore } from '../stores/categoryRuleStore';
-import { Category, TransactionType, CategoryCreateInput, CategoryRule } from '../database/types';
+import { Category, TransactionType, CategoryCreateInput } from '../database/types';
 import CategoryIcon from './CategoryIcon';
 
 // Available icons for custom categories

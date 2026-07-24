@@ -33,8 +33,6 @@ const DEFAULT_CATEGORY_RULES: Record<string, string[]> = {
   '通讯': ['话费', '流量', '充值', '手机'],
 };
 
-const CURRENT_DB_VERSION = 3;
-
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const userVersion = await db.getFirstAsync<{ user_version: number }>(
     'PRAGMA user_version'

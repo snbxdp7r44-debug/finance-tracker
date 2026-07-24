@@ -68,13 +68,14 @@ describe('categoryRuleStore', () => {
   });
 
   describe('loadRulesByCategory', () => {
-    it('should load rules for a category and update all rules', async () => {
+    it('should load rules for a specific category', async () => {
       const store = useCategoryRuleStore.getState();
       await store.loadRulesByCategory(mockDb, 1);
 
       const state = useCategoryRuleStore.getState();
-      // After loadRulesByCategory, all rules are reloaded via getAllRules
-      expect(state.rules).toHaveLength(3);
+      // loadRulesByCategory filters rules by category_id via getRulesByCategoryId
+      expect(state.rules).toHaveLength(2);
+      expect(state.rules.every(r => r.category_id === 1)).toBe(true);
       expect(state.loading).toBe(false);
     });
 

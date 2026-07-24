@@ -1,7 +1,7 @@
 import React, { useEffect, useCallback } from 'react';
-import { View, StyleSheet, FlatList, TouchableOpacity, Text } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
-import { Chip, Divider, TextInput, HelperText } from 'react-native-paper';
+import { HelperText } from 'react-native-paper';
 import { useCategoryStore } from '../stores/categoryStore';
 import { Category, TransactionType } from '../database/types';
 import CategoryIcon from './CategoryIcon';

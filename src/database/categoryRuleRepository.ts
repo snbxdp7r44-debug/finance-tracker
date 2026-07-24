@@ -70,7 +70,7 @@ export async function deleteRulesByCategoryId(db: SQLiteDatabase, categoryId: nu
   await db.runAsync('DELETE FROM category_rules WHERE category_id = ?', [categoryId]);
 }
 
-export async function findMatchingRules(db: SQLiteDatabase, note: string): Promise<(CategoryRule & { category_name: string; category_icon: string; category_color: string; category_type: string })[]> {
+export async function getMatchingRules(db: SQLiteDatabase, note: string): Promise<(CategoryRule & { category_name: string; category_icon: string; category_color: string; category_type: string })[]> {
   // Get all rules and filter in JS for substring matching (SQLite LIKE doesn't support CJK well)
   const rules = await db.getAllAsync<CategoryRule & { category_name: string; category_icon: string; category_color: string; category_type: string }>(
     `SELECT cr.*, c.name as category_name, c.icon as category_icon, c.color as category_color, c.type as category_type

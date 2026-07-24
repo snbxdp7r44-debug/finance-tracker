@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Card, IconButton } from 'react-native-paper';
 import { BudgetStatus } from '../database/types';
 import CategoryIcon from './CategoryIcon';

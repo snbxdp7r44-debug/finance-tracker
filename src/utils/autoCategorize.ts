@@ -1,6 +1,6 @@
 import { SQLiteDatabase } from 'expo-sqlite';
 import { Category } from '../database/types';
-import { findMatchingRules } from '../database/categoryRuleRepository';
+import { getMatchingRules } from '../database/categoryRuleRepository';
 
 export interface AutoCategorizeResult {
   category: Category;
@@ -19,7 +19,7 @@ export async function suggestCategory(
     return null;
   }
 
-  const matches = await findMatchingRules(db, note);
+  const matches = await getMatchingRules(db, note);
 
   if (matches.length === 0) {
     return null;

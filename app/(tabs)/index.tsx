@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { IconButton, Card, Divider, Dialog, Portal, Button as PaperButton } from 'react-native-paper';
 import { useSQLiteContext } from 'expo-sqlite';
