@@ -79,8 +79,8 @@ describe('categoryRuleStore', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      const { getRulesByCategoryId } = require('../../src/database/categoryRuleRepository');
-      getRulesByCategoryId.mockRejectedValueOnce(new Error('DB error'));
+      const { getAllRules } = require('../../src/database/categoryRuleRepository');
+      getAllRules.mockRejectedValueOnce(new Error('DB error'));
 
       const store = useCategoryRuleStore.getState();
       await store.loadRulesByCategory(mockDb, 1);
