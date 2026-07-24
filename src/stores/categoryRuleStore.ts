@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { CategoryRule, CategoryRuleCreateInput, CategoryRuleUpdateInput } from '../database/types';
 import {
   getAllRules,
-  getRulesByCategoryId,
   insertRule,
   updateRule,
   deleteRule,
@@ -38,13 +37,9 @@ export const useCategoryRuleStore = create<CategoryRuleState>((set, get) => ({
     }
   },
 
-  loadRulesByCategory: async (db, categoryId) => {
+  loadRulesByCategory: async (db, _categoryId) => {
     set({ loading: true, error: null });
     try {
-      const rules = await getRulesByCategoryId(db, categoryId);
-      set({ loading: false });
-      // Don't replace all rules, just ensure the rules list includes these
-      // In practice, we store all rules and filter via getRulesForCategory
       const allRules = await getAllRules(db);
       set({ rules: allRules, loading: false });
     } catch (e: any) {
